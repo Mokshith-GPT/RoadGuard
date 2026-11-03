@@ -80,15 +80,22 @@ RoadGuard/
 │   ├── damage_detection.py          # Module 3: YOLO & CV feature detection engine
 │   ├── segmentation_severity.py     # Module 4: Pixel mask segmentation & severity
 │   └── visualization_report.py      # Module 5: Overlay HUD & report generator
+├── web/                             # Responsive PWA frontend (HTML5/IndexedDB/Tailored CSS)
+├── android/                         # Native Android Dashcam app (Java / CameraX)
+├── cloudflare-backend/              # Edge API Worker (Hono / Cloudflare Workers)
 ├── models/                          # Storage for trained weights (e.g. best.pt)
 ├── samples/                         # Preloaded test road images
 ├── outputs/                         # Exported CSV/JSON audit logs & images
 ├── app.py                           # Full interactive Streamlit Web Dashboard
-├── test_pipeline.py                 # Automated end-to-end verification test
+├── model_service.py                 # Authenticated FastAPI YOLO inference adapter
+├── cctv_adapter.py                  # Authorized CCTV & IP camera stream ingestion adapter
+├── test_pipeline.py                 # Automated end-to-end 5-module verification test
+├── test_model_service.py            # Automated FastAPI model service test suite
 ├── generate_samples.py              # Synthetic benchmark road image generator
 ├── dataset_prep.py                  # RDD2022 VOC XML to YOLO converter
 ├── train_yolo.py                    # YOLOv8 model training script
 ├── requirements.txt                 # Python dependencies
+├── DEPLOYMENT.md                    # Production deployment and integration guide
 └── README.md                        # Documentation
 ```
 

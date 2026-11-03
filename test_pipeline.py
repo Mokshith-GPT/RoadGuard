@@ -28,7 +28,7 @@ def run_pipeline_test(sample_path: str):
     print(f"[Module 2 PASS] Preprocessed. Enhanced shape: {prep_data['enhanced'].shape}")
 
     # Module 3: Damage Detection
-    detector = DamageDetector(model_path="models/best.pt")
+    detector = DamageDetector(model_path="models/best.pt", conf_threshold=0.15)
     detections = detector.detect(prep_data)
     print(f"[Module 3 PASS] Detected {len(detections)} damage entities.")
     for d in detections:
@@ -59,5 +59,6 @@ def run_pipeline_test(sample_path: str):
 
 
 if __name__ == "__main__":
-    test_img = os.path.join("samples", "sample_multi_damage.jpg")
-    run_pipeline_test(test_img)
+    for sample in ["samples/sample_multi_damage.jpg", "samples/sample_linear_cracks.jpg"]:
+        if os.path.exists(sample):
+            run_pipeline_test(sample)

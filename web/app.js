@@ -215,18 +215,67 @@
     return data;
   }
 
+  function renderModelOverlay(blob, detections) {
+    return new Promise((resolve) => {
+      createImageBitmap(blob).then(bitmap => {
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+
+        const colors = {
+          "D00": "#ff8c00",
+          "D10": "#00d7ff",
+          "D20": "#ff00ff",
+          "D40": "#ff2800"
+        };
+
+        const w = canvas.width;
+        ctx.lineWidth = Math.max(2, Math.round(w / 280));
+        const fontSize = Math.max(12, Math.round(w / 40));
+        ctx.font = "bold " + fontSize + "px sans-serif";
+
+        (detections || []).forEach(d => {
+          if (!d.bbox || d.bbox.length < 4) return;
+          const [x, y, bw, bh] = d.bbox;
+          const stroke = colors[d.class_code] || "#00e5ff";
+          ctx.strokeStyle = stroke;
+          ctx.fillStyle = "rgba(0,0,0,0.18)";
+          ctx.fillRect(x, y, bw, bh);
+          ctx.strokeRect(x, y, bw, bh);
+
+          const conf = d.confidence ? " " + Math.round(d.confidence * 100) + "%" : "";
+          const label = (d.class_code || "") + " " + (d.class_name || "Defect") + conf;
+          const tw = ctx.measureText(label).width;
+          const th = fontSize + 6;
+          const textY = Math.max(th, y);
+
+          ctx.fillStyle = stroke;
+          ctx.fillRect(x, textY - th, tw + 8, th);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(label, x + 4, textY - 4);
+        });
+
+        canvas.toBlob(resolve, "image/jpeg", 0.90);
+      }).catch(() => resolve(null));
+    });
+  }
+
   async function inspectBlob(blob, meta) {
     let model = null;
     try { model = await modelInspect(blob, meta); }
     catch (err) { console.warn(err); toast("Model unavailable: " + err.message + ". Using the browser CV baseline."); }
     if (model) {
+      const overlay = await renderModelOverlay(blob, model.detections);
       return {
         method:"Configured road-damage model",
         candidateCount:model.detections.length,
         areaPct:Number(model.damage_area_percentage || 0),
         severity:model.overall_severity || "Not scored",
         detections:model.detections,
-        overlayBlob:null,
+        overlayBlob:overlay,
         disclaimer:"Model output is experimental and must be reviewed by a human inspector."
       };
     }

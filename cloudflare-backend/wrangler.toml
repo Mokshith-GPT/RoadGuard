@@ -1,6 +1,6 @@
 name = "roadguard-backend"
 main = "src/index.js"
-compatibility_date = "2026-11-04"
+compatibility_date = "2024-04-01"
 account_id = "f5083db73276fcc04fe0118e9763e126"
 workers_dev = true
 

@@ -62,19 +62,35 @@ class DamageDetector:
                     x1, y1, x2, y2 = box.xyxy[0].tolist()
                     x, y, w, h = int(x1), int(y1), int(x2 - x1), int(y2 - y1)
 
-                    cls_meta = DAMAGE_CLASSES.get(cls_id, {
-                        "code": f"D{cls_id}",
-                        "name": f"Defect-{cls_id}",
-                        "color": (0, 255, 255)
-                    })
+                    raw_name = ""
+                    if hasattr(self.model, "names") and cls_id in self.model.names:
+                        raw_name = str(self.model.names[cls_id]).lower()
+
+                    if "pothole" in raw_name:
+                        code, name, color = "D40", "Pothole", (0, 0, 255)
+                    elif "longitudinal" in raw_name:
+                        code, name, color = "D00", "Longitudinal Crack", (255, 140, 0)
+                    elif "transverse" in raw_name:
+                        code, name, color = "D10", "Transverse Crack", (0, 215, 255)
+                    elif "alligator" in raw_name or "block" in raw_name:
+                        code, name, color = "D20", "Alligator Crack", (255, 0, 255)
+                    elif "crack" in raw_name:
+                        code, name, color = "D00", "Linear Crack", (255, 140, 0)
+                    else:
+                        cls_meta = DAMAGE_CLASSES.get(cls_id, {
+                            "code": f"D{cls_id}",
+                            "name": f"Defect-{cls_id}",
+                            "color": (0, 255, 255)
+                        })
+                        code, name, color = cls_meta["code"], cls_meta["name"], cls_meta["color"]
 
                     detections.append({
                         "bbox": [x, y, w, h],
                         "class_id": cls_id,
-                        "class_code": cls_meta["code"],
-                        "class_name": cls_meta["name"],
+                        "class_code": code,
+                        "class_name": name,
                         "confidence": round(conf, 3),
-                        "color": cls_meta["color"]
+                        "color": color
                     })
         except Exception as e:
             print(f"[DamageDetector] YOLO inference error: {e}")
