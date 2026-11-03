@@ -2,7 +2,7 @@ name: Build RoadGuard Android APK
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -10,67 +10,63 @@ permissions:
 
 jobs:
   build:
-    name: Build & Release APK
+    name: Build and release Android APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java JDK 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
-      - name: Setup Gradle
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Generate Gradle Wrapper & Build APK
+      - name: Build release APK
         working-directory: android
         run: |
           gradle wrapper --gradle-version 8.2
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
-      - name: Find and Package APK
+      - name: Package APK
         run: |
-          APK_FILE=$(find android/app/build/outputs/apk/ -name "*.apk" | head -n 1)
+          APK_FILE="$(find android/app/build/outputs/apk/release -type f -name '*.apk' | head -n 1)"
           if [ -z "$APK_FILE" ]; then
-            echo "Error: No APK found!"
+            echo "Release APK not found."
             exit 1
           fi
-          echo "Found APK: $APK_FILE"
-          cp "$APK_FILE" RoadGuard-v1.0.apk
-          ls -lh RoadGuard-v1.0.apk
+          cp "$APK_FILE" RoadGuard-v1.1.apk
+          ls -lh RoadGuard-v1.1.apk
 
-      - name: Create or Update GitHub Release
+      - name: Publish versioned GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: "RoadGuard v1.0.0 (Android Mobile APK)"
+          tag_name: v1.1.0
+          name: "RoadGuard v1.1.0 — Android Dashcam Demo"
           draft: false
           prerelease: false
           body: |
-            ## 🛣️ RoadGuard Android Mobile Application
+            ## RoadGuard Android v1.1.0
 
-            **Direct APK Download for Android Devices**
+            ### Included
+            - CameraX rear-camera preview.
+            - Manual MP4 dashcam recording in five-minute segments.
+            - Rolling retention of the two newest completed video clips in app-specific storage.
+            - Manual evidence-frame capture with a JSON metadata sidecar.
+            - Beige, red and green RoadGuard interface palette.
 
-            ### 📱 Compatibility & Security
-            * **Supported Android Versions:** Android 8.0 (Oreo, API 26) through Android 15 (API 34/35)
-            * **Target SDK:** 34 (Google Play Store & Play Protect Compliant)
-            * **License:** Apache License 2.0
-            * **Package Name:** `com.mokshith.roadguard`
+            ### Important limitations
+            - This APK does not include trained YOLO inference or automatic pothole detection.
+            - Recording is stopped when the camera Activity leaves the foreground.
+            - Evidence is stored locally by the app; it is not synchronized to the PWA album.
+            - This build uses the debug signing configuration for sideload/demo testing. Do not use it for Play Store publishing.
+            - For model inference, Google sign-in and civic email integration, configure the web/API deployment described in DEPLOYMENT.md.
 
-            ### 🚀 Features Included
-            * Real-time Camera Preview with Telemetry HUD Viewfinder
-            * Pothole (`D40`) & Crack (`D00`, `D10`, `D20`) Severity Indexing
-            * Metric surface area ratio calculation ($A_d = \frac{N_d}{N_r} \times 100$)
-            * On-device defect logging and snapshot audit
-            
-            ---
-            ### 📥 Download & Install
-            Click on **`RoadGuard-v1.0.apk`** under the **Assets** section below to download directly to your Android device.
-          files: RoadGuard-v1.0.apk
+            See DEPLOYMENT.md for deployment and security configuration.
+          files: RoadGuard-v1.1.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
