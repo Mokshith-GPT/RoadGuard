@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch / Deep Learning Weights (keep models directory clean)
+*.pt
+*.pth
+*.onnx
+*.engine
+models/*
+!models/README.md
+
+# Large Datasets
+dataset/
+data/
+
+# Temporary run outputs
+outputs/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
