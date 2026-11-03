@@ -1,0 +1,14 @@
+{
+  "name": "roadguard-backend",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker Inference & Telemetry Backend for RoadGuard",
+  "main": "src/index.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "wrangler": "^3.114.17"
+  }
+}

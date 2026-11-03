@@ -142,7 +142,16 @@ RoadGuard includes a native Android mobile application tailored for in-vehicle d
 * **Automated CI/CD APK Build:** GitHub Actions automatically builds the `.apk` on every push and attaches `RoadGuard-v1.0.apk` to the [GitHub Releases](https://github.com/Mokshith-GPT/RoadGuard/releases) tab.
 
 ### Running the Mobile Backend
+You can use the live global Cloudflare Edge Inference Backend or run locally:
+
+* **Live Cloudflare Inference Backend URL:**  
+  👉 **`https://roadguard-backend.codersy17mc.workers.dev`**
+  - Health Endpoint: `GET https://roadguard-backend.codersy17mc.workers.dev/health`
+  - Inspection API: `POST https://roadguard-backend.codersy17mc.workers.dev/api/v1/inspect`
+  - Audit Logs: `GET https://roadguard-backend.codersy17mc.workers.dev/api/v1/audit/logs`
+
+* **Local Python Backend (Optional):**
 ```bash
 python mobile_api.py
 ```
-This runs the lightweight REST endpoint on `http://0.0.0.0:8000/api/v1/inspect` to receive live frames from the Android app.
+This runs the local REST endpoint on `http://0.0.0.0:8000/api/v1/inspect` to receive live frames from the Android app.
