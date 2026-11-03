@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary_blue">#1E3A8A</color>
-    <color name="primary_dark">#0F172A</color>
-    <color name="accent_blue">#2563EB</color>
-    <color name="severity_low">#10B981</color>
-    <color name="severity_medium">#F59E0B</color>
-    <color name="severity_high">#EF4444</color>
-    <color name="background_light">#F8FAFC</color>
-    <color name="card_background">#FFFFFF</color>
-    <color name="text_primary">#1F2937</color>
-    <color name="text_secondary">#6B7280</color>
+    <color name="primary_blue">#183D2B</color>
+    <color name="primary_dark">#183D2B</color>
+    <color name="accent_blue">#FF2800</color>
+    <color name="severity_low">#228B22</color>
+    <color name="severity_medium">#C89422</color>
+    <color name="severity_high">#FF2800</color>
+    <color name="background_light">#F5FFDC</color>
+    <color name="card_background">#FFFEF8</color>
+    <color name="text_primary">#17251C</color>
+    <color name="text_secondary">#718077</color>
 </resources>

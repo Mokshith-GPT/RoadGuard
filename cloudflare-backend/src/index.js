@@ -1,214 +1,230 @@
-/**
- * RoadGuard - Cloudflare Edge Inference & Telemetry Backend
- * Serverless API for Android Mobile App and Web Dashboard.
- * Powered by Cloudflare Workers & Cloudflare Workers AI.
- */
+const CLASS_INFO = [
+  { code: "D00", name: "Longitudinal crack" },
+  { code: "D10", name: "Transverse crack" },
+  { code: "D20", name: "Alligator / fatigue crack" },
+  { code: "D40", name: "Pothole" }
+];
 
-// In-memory audit cache for edge session logs
-const inMemoryAuditLogs = [];
+function allowedOrigins(env) {
+  return (env.ALLOWED_ORIGINS || "https://mokshith-gpt.github.io,http://localhost:8080,http://127.0.0.1:8080")
+    .split(",").map(x => x.trim()).filter(Boolean);
+}
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
-  "Access-Control-Max-Age": "86400",
-};
+function corsHeaders(request, env) {
+  const origin = request.headers.get("Origin");
+  const allowed = allowedOrigins(env);
+  const headers = {
+    "Vary": "Origin",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Max-Age": "86400"
+  };
+  if (origin && allowed.includes(origin)) headers["Access-Control-Allow-Origin"] = origin;
+  return headers;
+}
 
-function jsonResponse(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...CORS_HEADERS,
-    },
+function json(data, status, headers) {
+  return new Response(JSON.stringify(data), {
+    status: status || 200,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(headers || {}) }
   });
 }
 
+function base64url(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function decodeBase64url(value) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function hmacKey(secret) {
+  return crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+}
+
+async function createSession(user, secret) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(new TextEncoder().encode(JSON.stringify({ alg: "HS256", typ: "JWT" })));
+  const payload = base64url(new TextEncoder().encode(JSON.stringify({
+    sub: user.sub, email: user.email, name: user.name || "",
+    picture: user.picture || "", iat: now, exp: now + 6 * 60 * 60
+  })));
+  const unsigned = header + "." + payload;
+  const signature = await crypto.subtle.sign("HMAC", await hmacKey(secret), new TextEncoder().encode(unsigned));
+  return unsigned + "." + base64url(new Uint8Array(signature));
+}
+
+async function verifySession(request, env) {
+  if (!env.SESSION_SECRET) throw new Error("SESSION_SECRET_NOT_CONFIGURED");
+  const authorization = request.headers.get("Authorization") || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("UNAUTHORIZED");
+  const unsigned = parts[0] + "." + parts[1];
+  const valid = await crypto.subtle.verify("HMAC", await hmacKey(env.SESSION_SECRET), decodeBase64url(parts[2]), new TextEncoder().encode(unsigned));
+  if (!valid) throw new Error("UNAUTHORIZED");
+  let payload;
+  try { payload = JSON.parse(new TextDecoder().decode(decodeBase64url(parts[1]))); }
+  catch (_) { throw new Error("UNAUTHORIZED"); }
+  if (!payload.exp || payload.exp < Math.floor(Date.now() / 1000)) throw new Error("SESSION_EXPIRED");
+  return payload;
+}
+
+function validateEmail(value) {
+  return typeof value === "string" && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function googleAuth(request, env) {
+  if (!env.GOOGLE_CLIENT_ID || !env.SESSION_SECRET) {
+    return json({ error: "GOOGLE_OAUTH_NOT_CONFIGURED", message: "Set GOOGLE_CLIENT_ID and SESSION_SECRET in Worker settings." }, 503);
+  }
+  const body = await request.json();
+  if (typeof body.credential !== "string" || body.credential.length > 12000) {
+    return json({ error: "INVALID_GOOGLE_CREDENTIAL" }, 400);
+  }
+  const tokenInfoUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(body.credential);
+  const response = await fetch(tokenInfoUrl, { headers: { "Accept": "application/json" } });
+  if (!response.ok) return json({ error: "GOOGLE_TOKEN_REJECTED" }, 401);
+  const claims = await response.json();
+  if (claims.aud !== env.GOOGLE_CLIENT_ID || claims.email_verified !== "true" || !claims.sub || !validateEmail(claims.email)) {
+    return json({ error: "GOOGLE_IDENTITY_NOT_VERIFIED" }, 401);
+  }
+  const user = { sub: claims.sub, email: claims.email, name: claims.name || "", picture: claims.picture || "" };
+  const sessionToken = await createSession(user, env.SESSION_SECRET);
+  return json({ success: true, sessionToken: sessionToken, expiresIn: 21600, user: user });
+}
+
+async function inspectImage(request, env) {
+  await verifySession(request, env);
+  if (!env.MODEL_API_URL) {
+    return json({
+      error: "MODEL_NOT_CONFIGURED",
+      message: "No trained road-damage inference endpoint is configured. No detection result has been fabricated.",
+      supportedClasses: CLASS_INFO
+    }, 503);
+  }
+  const body = await request.json();
+  if (typeof body.image_base64 !== "string" || body.image_base64.length < 100 || body.image_base64.length > 9000000) {
+    return json({ error: "INVALID_IMAGE", message: "Provide image_base64 between 100 bytes and 6.5 MB encoded." }, 400);
+  }
+  const response = await fetch(env.MODEL_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(env.MODEL_API_TOKEN ? { "Authorization": "Bearer " + env.MODEL_API_TOKEN } : {})
+    },
+    body: JSON.stringify({
+      image_base64: body.image_base64,
+      filename: String(body.filename || "road-image").slice(0, 160),
+      metadata: body.metadata || {}
+    })
+  });
+  if (!response.ok) return json({ error: "MODEL_UPSTREAM_ERROR", upstreamStatus: response.status }, 502);
+  const result = await response.json().catch(() => null);
+  if (!result || !Array.isArray(result.detections)) {
+    return json({ error: "MODEL_RESPONSE_INVALID", message: "The inference service must return a detections array." }, 502);
+  }
+  return json({
+    success: true,
+    source: "configured-model",
+    overall_severity: result.overall_severity || "Not scored",
+    overall_score: Number.isFinite(result.overall_score) ? result.overall_score : null,
+    damage_area_percentage: Number.isFinite(result.damage_area_percentage) ? result.damage_area_percentage : null,
+    total_defects_count: result.detections.length,
+    detections: result.detections,
+    timestamp: new Date().toISOString()
+  });
+}
+
+async function sendEmail(request, env) {
+  await verifySession(request, env);
+  if (!env.RESEND_API_KEY || !env.REPORT_FROM_EMAIL) {
+    return json({ error: "EMAIL_NOT_CONFIGURED", message: "Configure RESEND_API_KEY and REPORT_FROM_EMAIL in Cloudflare Worker settings." }, 503);
+  }
+  const body = await request.json();
+  if (body.confirmSend !== true) return json({ error: "EXPLICIT_CONFIRMATION_REQUIRED" }, 400);
+  if (!validateEmail(body.to)) return json({ error: "INVALID_RECIPIENT_EMAIL" }, 400);
+  if (typeof body.subject !== "string" || body.subject.length > 180 || typeof body.text !== "string" || body.text.length > 12000) {
+    return json({ error: "INVALID_EMAIL_CONTENT" }, 400);
+  }
+  const attachments = [];
+  if (body.attachment) {
+    const a = body.attachment;
+    if (typeof a.content_base64 !== "string" || a.content_base64.length > 7000000) {
+      return json({ error: "ATTACHMENT_TOO_LARGE", message: "Image attachments must be below approximately 5 MB." }, 413);
+    }
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(a.content_type)) return json({ error: "UNSUPPORTED_ATTACHMENT_TYPE" }, 400);
+    attachments.push({
+      filename: String(a.filename || "road-evidence.jpg").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120),
+      content: a.content_base64
+    });
+  }
+  const upstream = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: env.REPORT_FROM_EMAIL,
+      to: [body.to],
+      subject: body.subject,
+      text: body.text,
+      ...(attachments.length ? { attachments: attachments } : {})
+    })
+  });
+  const result = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) return json({ error: "EMAIL_PROVIDER_ERROR", message: result.message || "Resend rejected the request." }, 502);
+  return json({ success: true, id: result.id || null });
+}
+
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
-    const method = request.method;
-
-    // Handle CORS Preflight
-    if (method === "OPTIONS") {
-      return new Response(null, {
-        status: 204,
-        headers: CORS_HEADERS,
-      });
-    }
-
+    const cors = corsHeaders(request, env);
+    const origin = request.headers.get("Origin");
+    if (origin && !allowedOrigins(env).includes(origin)) return json({ error: "ORIGIN_NOT_ALLOWED" }, 403, cors);
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     try {
-      // 1. Health & Root Endpoint
       if (url.pathname === "/" || url.pathname === "/health") {
-        return jsonResponse({
+        return json({
           status: "online",
-          service: env.APP_NAME || "RoadGuard Cloudflare Telemetry & Inference Backend",
-          version: env.VERSION || "1.0.0",
-          environment: env.ENVIRONMENT || "production",
-          runtime: "Cloudflare Edge Workers",
-          endpoints: {
-            health: "GET /health",
-            inspect: "POST /api/v1/inspect",
-            audit_log: "POST /api/v1/audit/log",
-            audit_logs: "GET /api/v1/audit/logs",
-          },
-          supported_damage_classes: [
-            { code: "D00", name: "Longitudinal Crack", weight: 1.0 },
-            { code: "D10", name: "Transverse Crack", weight: 1.0 },
-            { code: "D20", name: "Alligator Fatigue", weight: 1.2 },
-            { code: "D40", name: "Pothole Cavity", weight: 1.4 },
-          ],
-        });
+          service: env.APP_NAME || "RoadGuard API",
+          version: env.VERSION || "2.0.0",
+          runtime: "Cloudflare Workers",
+          modelConfigured: !!env.MODEL_API_URL,
+          emailConfigured: !!(env.RESEND_API_KEY && env.REPORT_FROM_EMAIL),
+          googleAuthConfigured: !!(env.GOOGLE_CLIENT_ID && env.SESSION_SECRET),
+          supportedClasses: CLASS_INFO,
+          storage: "Evidence images and dashcam clips are stored locally in the client app."
+        }, 200, cors);
       }
-
-      // 2. Real-Time Road Distress Inspection Endpoint
-      if (url.pathname === "/api/v1/inspect" && method === "POST") {
-        const startTime = Date.now();
-        let payload = {};
-
-        const contentType = request.headers.get("content-type") || "";
-
-        if (contentType.includes("application/json")) {
-          payload = await request.json().catch(() => ({}));
-        } else if (contentType.includes("multipart/form-data") || contentType.includes("application/x-www-form-urlencoded")) {
-          const formData = await request.formData().catch(() => null);
-          if (formData) {
-            payload = {
-              source: "multipart_upload",
-              hasFile: formData.has("file") || formData.has("image"),
-            };
-          }
-        }
-
-        // Pavement distress evaluation engine
-        // Simulates or processes vision bounding boxes and compute RDSI metric
-        const hasCriticalDefect = Math.random() > 0.35;
-        const potholeCount = hasCriticalDefect ? Math.floor(Math.random() * 2) + 1 : 0;
-        const crackCount = Math.floor(Math.random() * 3) + 1;
-        const totalDefects = potholeCount + crackCount;
-
-        // Damage area calculation (Ad = Nd / Nr * 100)
-        const damageAreaPercentage = Number(
-          (potholeCount * 3.8 + crackCount * 1.6 + (Math.random() * 2.1)).toFixed(2)
-        );
-
-        // Multi-tier severity classification
-        let severityTier = "Low";
-        let severityScore = 0;
-
-        if (damageAreaPercentage > 10.0 || potholeCount > 0) {
-          severityTier = "High";
-          severityScore = Math.min(100, Math.round(70 + damageAreaPercentage * 2.5));
-        } else if (damageAreaPercentage > 3.0 || crackCount > 1) {
-          severityTier = "Medium";
-          severityScore = Math.round(40 + damageAreaPercentage * 3.0);
-        } else {
-          severityTier = "Low";
-          severityScore = Math.round(damageAreaPercentage * 8.0);
-        }
-
-        const detections = [];
-        let idCounter = 1;
-
-        if (potholeCount > 0) {
-          for (let i = 0; i < potholeCount; i++) {
-            detections.push({
-              id: idCounter++,
-              class_code: "D40",
-              class_name: "Pothole (Cavity)",
-              confidence: Number((0.88 + Math.random() * 0.08).toFixed(2)),
-              bbox: [240 + i * 30, 320 + i * 40, 140, 110],
-              bbox_damage_percentage: 34.5,
-              severity_tier: "High",
-              color: "#EF4444",
-            });
-          }
-        }
-
-        for (let j = 0; j < crackCount; j++) {
-          const isAlligator = j === 0;
-          const code = isAlligator ? "D20" : j % 2 === 0 ? "D00" : "D10";
-          const name = isAlligator
-            ? "Alligator Crack"
-            : code === "D00"
-            ? "Longitudinal Crack"
-            : "Transverse Crack";
-
-          detections.push({
-            id: idCounter++,
-            class_code: code,
-            class_name: name,
-            confidence: Number((0.76 + Math.random() * 0.12).toFixed(2)),
-            bbox: [180 + j * 45, 260 + j * 35, 90, 130],
-            bbox_damage_percentage: Number((12.0 + j * 4.5).toFixed(1)),
-            severity_tier: isAlligator ? "Medium" : "Low",
-            color: isAlligator ? "#F59E0B" : "#3B82F6",
-          });
-        }
-
-        const latencyMs = Date.now() - startTime;
-
-        const result = {
-          success: true,
-          timestamp: new Date().toISOString(),
-          latency_ms: latencyMs,
-          fps_equivalent: Number((1000 / Math.max(latencyMs, 1)).toFixed(1)),
-          overall_severity: severityTier,
-          overall_score: severityScore,
-          damage_area_percentage: damageAreaPercentage,
-          total_defects_count: totalDefects,
-          damage_counts: {
-            D00: detections.filter((d) => d.class_code === "D00").length,
-            D10: detections.filter((d) => d.class_code === "D10").length,
-            D20: detections.filter((d) => d.class_code === "D20").length,
-            D40: detections.filter((d) => d.class_code === "D40").length,
-          },
-          detections: detections,
-        };
-
-        // Automatically store in recent audit queue
-        inMemoryAuditLogs.unshift({
-          timestamp: result.timestamp,
-          severity: severityTier,
-          area_pct: damageAreaPercentage,
-          defects: totalDefects,
-        });
-        if (inMemoryAuditLogs.length > 50) {
-          inMemoryAuditLogs.pop();
-        }
-
-        return jsonResponse(result);
+      if (url.pathname === "/api/v1/auth/google" && request.method === "POST") {
+        const response = await googleAuth(request, env);
+        return new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), ...cors } });
       }
-
-      // 3. Post Audit Snapshot Record
-      if (url.pathname === "/api/v1/audit/log" && method === "POST") {
-        const body = await request.json().catch(() => ({}));
-        const logEntry = {
-          id: inMemoryAuditLogs.length + 1,
-          timestamp: new Date().toISOString(),
-          latitude: body.latitude || 12.9716,
-          longitude: body.longitude || 77.5946,
-          overall_severity: body.overall_severity || "Medium",
-          damage_area_percentage: body.damage_area_percentage || 4.2,
-          notes: body.notes || "Audited via RoadGuard Mobile Viewfinder",
-        };
-        inMemoryAuditLogs.unshift(logEntry);
-        return jsonResponse({ success: true, logged_entry: logEntry }, 201);
+      if (url.pathname === "/api/v1/inspect" && request.method === "POST") {
+        const response = await inspectImage(request, env);
+        return new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), ...cors } });
       }
-
-      // 4. Retrieve Audit History
-      if (url.pathname === "/api/v1/audit/logs" && method === "GET") {
-        return jsonResponse({
-          success: true,
-          total_records: inMemoryAuditLogs.length,
-          logs: inMemoryAuditLogs,
-        });
+      if (url.pathname === "/api/v1/reports/email" && request.method === "POST") {
+        const response = await sendEmail(request, env);
+        return new Response(response.body, { status: response.status, headers: { ...Object.fromEntries(response.headers), ...cors } });
       }
-
-      // 404 Fallback
-      return jsonResponse({ error: "Endpoint not found", path: url.pathname }, 404);
-    } catch (err) {
-      return jsonResponse({ error: "Internal edge worker error", details: err.message }, 500);
+      if (url.pathname.startsWith("/api/v1/audit/")) {
+        return json({ error: "AUDIT_STORAGE_NOT_CONFIGURED", message: "Durable cloud audit storage is not configured. Use the local evidence album or add a Cloudflare D1/R2 binding." }, 501, cors);
+      }
+      return json({ error: "NOT_FOUND" }, 404, cors);
+    } catch (error) {
+      const message = error && error.message ? error.message : "Unexpected server error";
+      if (message === "UNAUTHORIZED" || message === "SESSION_EXPIRED") return json({ error: message }, 401, cors);
+      if (message === "SESSION_SECRET_NOT_CONFIGURED") return json({ error: "SESSION_SECRET_NOT_CONFIGURED" }, 503, cors);
+      console.error("RoadGuard Worker error:", message);
+      return json({ error: "INTERNAL_ERROR" }, 500, cors);
     }
-  },
+  }
 };

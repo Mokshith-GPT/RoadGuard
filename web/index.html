@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#183d2b">
+  <meta name="description" content="RoadGuard road damage inspection, dashcam capture and local evidence management.">
+  <title>RoadGuard — Road Intelligence</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./app.css">
+  <script src="./app-config.js"></script>
+  <script async defer src="https://accounts.google.com/gsi/client"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#dashboard" aria-label="RoadGuard home">
+        <span class="brand-mark">RG</span>
+        <span><strong>RoadGuard</strong><small>ROAD INTELLIGENCE</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-item active" data-view="dashboard"><span>▦</span>Overview</button>
+        <button class="nav-item" data-view="live"><span>◉</span>Live dashcam</button>
+        <button class="nav-item" data-view="upload"><span>⇧</span>Image inspection</button>
+        <button class="nav-item" data-view="album"><span>▧</span>Evidence album <b id="album-count" class="nav-count">0</b></button>
+        <button class="nav-item" data-view="reports"><span>✉</span>Reports & civic email</button>
+        <button class="nav-item" data-view="settings"><span>⚙</span>Settings</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-card"><span class="privacy-icon">⌑</span><div><strong>Device-first storage</strong><small>Images and clips stay on this device unless you choose to send them.</small></div></div>
+        <div class="sidebar-user"><span class="avatar" id="user-avatar">RG</span><div><strong id="user-name">Local workspace</strong><small id="user-email">Not signed in</small></div></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div><div class="eyebrow" id="page-eyebrow">ROAD CONDITION MONITORING</div><h1 id="page-title">Overview</h1></div>
+        <div class="top-actions">
+          <span class="connection"><i></i><span id="api-status">Local mode</span></span>
+          <button class="button button-light install-btn" id="install-app" hidden>Install app</button>
+          <div id="google-signin" class="google-box"></div>
+          <button class="button button-outline" id="local-mode">Local workspace</button>
+        </div>
+      </header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="hero-kicker"><span class="live-dot"></span> FIELD INSPECTION PLATFORM</div>
+            <h2>Make every road<br><em>count.</em></h2>
+            <p>Capture pavement distress, preserve location-tagged evidence and prepare clear reports for the teams responsible for safer streets.</p>
+            <div class="hero-actions"><button class="button button-red" data-go="live">◉ Start live inspection</button><button class="button button-cream" data-go="upload">＋ Inspect an image</button></div>
+            <small class="hero-note">Use only when safely mounted. Never operate the interface while driving.</small>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="road-lines"></div><div class="road-chip chip-one">D40 · POTHOLE</div><div class="road-chip chip-two">GPS · READY</div><div class="road-pin">⌖</div><div class="art-caption">ROAD SURFACE<br><strong>MONITORING</strong></div>
+          </div>
+        </div>
+
+        <div class="section-head"><div><div class="eyebrow">YOUR DEVICE</div><h2>Inspection summary</h2></div><span class="muted" id="last-sync">Stored locally on this device</span></div>
+        <div class="metric-grid">
+          <article class="metric-card"><span class="metric-icon green">▧</span><span class="metric-label">Evidence images</span><strong id="metric-images">0</strong><small>Saved inspection frames</small></article>
+          <article class="metric-card"><span class="metric-icon red">◉</span><span class="metric-label">Video clips retained</span><strong id="metric-videos">0 / 2</strong><small>Rolling dashcam storage</small></article>
+          <article class="metric-card"><span class="metric-icon gold">⌖</span><span class="metric-label">Location-tagged</span><strong id="metric-located">0</strong><small>Records with GPS metadata</small></article>
+          <article class="metric-card"><span class="metric-icon ink">✉</span><span class="metric-label">Reports prepared</span><strong id="metric-reports">0</strong><small>Inspection reports generated</small></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel">
+            <div class="panel-head"><div><div class="eyebrow">RECENT EVIDENCE</div><h3>Latest captures</h3></div><button class="text-button" data-go="album">Open album ↗</button></div>
+            <div id="recent-list" class="recent-list"><div class="empty-state"><span>▧</span><strong>No captures yet</strong><p>Start a live inspection or upload a road image to build your evidence album.</p></div></div>
+          </section>
+          <section class="panel quick-panel">
+            <div class="eyebrow">QUICK ACTIONS</div><h3>Start an inspection</h3>
+            <button class="quick-action" data-go="live"><span class="quick-icon red">◉</span><span><strong>Live dashcam</strong><small>Camera preview, rolling video and frame sampling</small></span><b>→</b></button>
+            <button class="quick-action" data-go="upload"><span class="quick-icon green">⇧</span><span><strong>Upload a road image</strong><small>Run the browser CV baseline and tag evidence</small></span><b>→</b></button>
+            <button class="quick-action" data-go="reports"><span class="quick-icon gold">✉</span><span><strong>Prepare civic report</strong><small>Compose a municipal maintenance enquiry</small></span><b>→</b></button>
+            <div class="model-note"><span class="status-dot amber"></span><span><strong>Inference status</strong><small id="model-note">Browser CV baseline available. Trained pothole model not configured.</small></span></div>
+          </section>
+        </div>
+        <div class="disclaimer">RoadGuard is an inspection aid. Browser-based candidate extraction is experimental and is not a certified road-safety or engineering assessment.</div>
+      </section>
+
+      <section class="view" id="view-live">
+        <div class="view-intro"><div><div class="eyebrow">CAMERA ACQUISITION</div><h2>Live dashcam inspection</h2><p>Capture short rolling video clips and periodically extract still frames for road-surface analysis.</p></div><span class="tag tag-green">DEVICE CAMERA</span></div>
+        <div class="live-grid">
+          <section class="panel camera-panel">
+            <div class="panel-head"><div><div class="eyebrow">REAR CAMERA FEED</div><h3 id="camera-heading">Camera not started</h3></div><span class="record-status" id="record-status"><i></i> STANDBY</span></div>
+            <div class="camera-stage"><video id="camera-preview" autoplay muted playsinline></video><div class="camera-placeholder" id="camera-placeholder"><span>◉</span><strong>Camera preview</strong><small>Grant camera permission to begin.</small></div><div class="camera-hud"><span id="gps-hud">GPS · waiting</span><span id="clock-hud">--:--:--</span></div></div>
+            <div class="camera-controls"><button class="button button-green" id="start-camera">Start camera</button><button class="button button-red" id="toggle-record" disabled>● Start recording</button><button class="button button-outline" id="stop-camera" disabled>Stop camera</button></div>
+            <div class="retention-warning"><strong>Video retention rule</strong><p>Only the two latest completed video clips are kept in this app's local storage. Starting a new recording may delete older clips beyond that limit. Keep this page open and visible; mobile browsers may suspend camera access in the background.</p></div>
+          </section>
+          <section class="panel live-side">
+            <div class="eyebrow">LIVE TELEMETRY</div><h3>Capture diagnostics</h3>
+            <div class="live-stat"><span>Camera stream</span><strong id="stream-state">Offline</strong></div>
+            <div class="live-stat"><span>Recording</span><strong id="record-state">Stopped</strong></div>
+            <div class="live-stat"><span>Location</span><strong id="location-state">Not available</strong></div>
+            <div class="live-stat"><span>Frame analysis</span><strong id="analysis-state">Waiting</strong></div>
+            <div class="divider"></div>
+            <div class="eyebrow">RECENT FRAME EVENTS</div><div id="live-events" class="event-list"><p class="muted">No frame events yet.</p></div>
+            <p class="small-note">The browser CV baseline identifies dark/irregular candidate regions only. Connect a trained road-damage model in Cloudflare to obtain validated D00/D10/D20/D40 model detections.</p>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" id="view-upload">
+        <div class="view-intro"><div><div class="eyebrow">IMAGE PROCESSING</div><h2>Inspect a road image</h2><p>Upload a JPG, PNG or WebP image. RoadGuard records capture metadata and runs a transparent browser CV baseline.</p></div><span class="tag tag-red">CVIP PIPELINE</span></div>
+        <div class="upload-grid">
+          <section class="panel upload-panel">
+            <label class="dropzone" for="image-file"><span class="upload-symbol">⇧</span><strong>Drop an image here or browse</strong><small>JPG, PNG or WebP · up to 12 MB</small><input type="file" id="image-file" accept="image/jpeg,image/png,image/webp"></label>
+            <div class="upload-preview" id="upload-preview"><span>Preview will appear here</span></div>
+            <div class="camera-controls"><button class="button button-red" id="analyze-upload" disabled>Analyse and save evidence</button><button class="button button-outline" id="clear-upload">Clear</button></div>
+          </section>
+          <section class="panel result-panel"><div class="eyebrow">INSPECTION RESULT</div><h3>Visual candidate analysis</h3><div id="upload-result" class="empty-state"><span>⌕</span><strong>Waiting for image</strong><p>Choose a road photo to see preprocessing output and candidate regions.</p></div></section>
+        </div>
+      </section>
+
+      <section class="view" id="view-album">
+        <div class="view-intro"><div><div class="eyebrow">LOCAL EVIDENCE LIBRARY</div><h2>Evidence album</h2><p>Images, visual analysis and metadata are stored in this browser's IndexedDB.</p></div><button class="button button-outline" id="export-data">Export metadata</button></div>
+        <div class="album-toolbar"><span id="album-summary">0 images</span><input id="album-search" type="search" placeholder="Search filename, address or date"></div>
+        <div id="album-grid" class="album-grid"><div class="empty-state"><span>▧</span><strong>Your album is empty</strong><p>Captured images will appear here with time, coordinates and analysis data.</p></div></div>
+        <div class="disclaimer">Album data is local to this browser/device. Clearing browser site data may remove it. Export important evidence regularly.</div>
+      </section>
+
+      <section class="view" id="view-reports">
+        <div class="view-intro"><div><div class="eyebrow">CIVIC COMMUNICATION</div><h2>Reports & municipal email</h2><p>Prepare an evidence-backed maintenance enquiry. Review the recipient and contents before sending.</p></div><span class="tag tag-gold">USER CONFIRMATION REQUIRED</span></div>
+        <div class="report-grid">
+          <section class="panel">
+            <div class="eyebrow">REPORT DETAILS</div><h3>Compose a road maintenance report</h3>
+            <label class="field-label">Evidence image<select id="report-record"><option value="">Select an evidence image</option></select></label>
+            <label class="field-label">Municipal / road-maintenance office email<input id="recipient-email" type="email" placeholder="Enter the verified office email"></label>
+            <label class="field-label">Road authority / area<input id="road-authority" type="text" placeholder="e.g. City corporation / PWD division"></label>
+            <label class="field-label">Your contact email or phone<input id="report-contact" type="text" placeholder="How the office can contact you"></label>
+            <label class="field-label">Additional notes<textarea id="report-notes" rows="4" placeholder="Nearest landmark, direction of travel, visible risk or other context"></textarea></label>
+            <div class="camera-controls"><button class="button button-green" id="send-report">Send with configured email service</button><button class="button button-outline" id="draft-report">Create email draft</button></div>
+            <p class="small-note">Sending requires a configured Cloudflare Worker and Resend email credentials. A draft opens in your email app; download the evidence image separately to attach it manually.</p>
+          </section>
+          <section class="panel report-preview"><div class="eyebrow">PREVIEW</div><h3>Message preview</h3><div id="report-preview" class="email-paper"><strong>Subject: Road surface damage reported for inspection</strong><p>Select an evidence image to populate the report preview.</p></div><button class="text-button" id="download-report" disabled>Download inspection report ↧</button></section>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings">
+        <div class="view-intro"><div><div class="eyebrow">APP CONFIGURATION</div><h2>Settings & integrations</h2><p>Connect Google sign-in and your Cloudflare inference/email services.</p></div></div>
+        <div class="settings-grid">
+          <section class="panel"><div class="eyebrow">API CONNECTION</div><h3>Cloudflare Worker</h3><label class="field-label">API base URL<input id="api-url" type="url" spellcheck="false"></label><button class="button button-green" id="save-api">Save API endpoint</button><p class="small-note">The Worker must have MODEL_API_URL configured for trained-model inference. Without it, RoadGuard uses the experimental browser CV baseline and does not invent detections.</p><div class="integration-row"><span>Worker health</span><strong id="worker-health">Not checked</strong></div><div class="integration-row"><span>Model inference</span><strong id="worker-model">Not checked</strong></div><div class="integration-row"><span>Email service</span><strong id="worker-email">Not checked</strong></div></section>
+          <section class="panel"><div class="eyebrow">IDENTITY</div><h3>Google sign-in</h3><p id="oauth-setup">Google OAuth is not configured. Add your Google Web Client ID in web/app-config.js and configure the same audience in the Worker.</p><div class="integration-row"><span>Current session</span><strong id="session-state">Local workspace</strong></div><button class="button button-outline" id="signout">Sign out</button></section>
+          <section class="panel"><div class="eyebrow">STORAGE & PRIVACY</div><h3>Local evidence controls</h3><div class="integration-row"><span>Images</span><strong>Stored until deleted</strong></div><div class="integration-row"><span>Video clips</span><strong>Latest 2 only</strong></div><div class="integration-row"><span>GPS tagging</span><strong>Permission-based</strong></div><button class="button button-outline" id="clear-videos">Delete all saved videos</button><button class="button button-danger-outline" id="clear-all">Delete all local evidence</button></section>
+        </div>
+      </section>
+
+      <footer class="app-footer"><span>ROADGUARD · CVIP MINI-PROJECT</span><span>Device-local evidence · Permission-based location · Human-reviewed reports</span></footer>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>

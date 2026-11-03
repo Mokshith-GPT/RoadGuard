@@ -1,0 +1,35 @@
+name: Deploy RoadGuard Cloudflare Worker
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "cloudflare-backend/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Require deployment token
+        if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
+        run: |
+          echo "::warning::Set CLOUDFLARE_API_TOKEN in repository Actions secrets to enable Worker deployment."
+      - name: Set up Node
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Wrangler
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        working-directory: cloudflare-backend
+        run: npm install
+      - name: Deploy Worker
+        if: ${{ env.CLOUDFLARE_API_TOKEN != '' }}
+        working-directory: cloudflare-backend
+        run: npx wrangler deploy

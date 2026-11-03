@@ -1,0 +1,14 @@
+{
+  "name": "RoadGuard Road Intelligence",
+  "short_name": "RoadGuard",
+  "description": "Road surface inspection and evidence capture",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5ffdc",
+  "theme_color": "#183d2b",
+  "orientation": "any",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

@@ -155,3 +155,14 @@ You can use the live global Cloudflare Edge Inference Backend or run locally:
 python mobile_api.py
 ```
 This runs the local REST endpoint on `http://0.0.0.0:8000/api/v1/inspect` to receive live frames from the Android app.
+
+
+---
+
+## Current web, API and Android scope (November 4, 2026)
+
+The static installable dashboard is in [`web/`](web/) and is published by the GitHub Pages workflow. See [DEPLOYMENT.md](DEPLOYMENT.md) for the required Google OAuth, Cloudflare Worker, model endpoint, and email-provider configuration.
+
+**Important implementation boundaries:** the PWA's fallback image pipeline is a classical CV candidate-region heuristic, not a trained pothole classifier. The Worker returns `503 MODEL_NOT_CONFIGURED` until a genuine inference endpoint is configured; it never fabricates detections. PWA evidence and the two newest video clips are stored in browser-local IndexedDB. The Android camera Activity stores MP4 clips and still frames in app-specific storage, but recording ends when the Activity leaves the foreground. Neither client is a central multi-device archive.
+
+Google sign-in and municipal email sending remain disabled until administrator-owned OAuth and Resend configuration is provided. The current APK build is debug-signed for sideload/demo testing, not Play Store publishing. CCTV/RTSP/ONVIF ingestion and unattended Android background recording require separate production adapters and security review.

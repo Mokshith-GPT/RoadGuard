@@ -3,20 +3,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.mokshith.roadguard">
 
-    <!-- Permissions required for live road inspection -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Camera hardware features -->
-    <uses-feature
-        android:name="android.hardware.camera"
-        android:required="true" />
-    <uses-feature
-        android:name="android.hardware.camera.autofocus"
-        android:required="false" />
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <application
         android:allowBackup="false"
@@ -25,10 +19,8 @@
         android:roundIcon="@android:drawable/ic_menu_camera"
         android:supportsRtl="true"
         android:theme="@style/Theme.RoadGuard"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         tools:targetApi="34">
-
-        <!-- Main Dashboard Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -38,13 +30,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Live Camera & Telemetry HUD Activity -->
         <activity
             android:name=".CameraActivity"
             android:exported="false"
             android:screenOrientation="portrait" />
-
     </application>
-
 </manifest>

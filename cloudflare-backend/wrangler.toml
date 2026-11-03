@@ -1,12 +1,10 @@
 name = "roadguard-backend"
 main = "src/index.js"
-compatibility_date = "2024-04-01"
+compatibility_date = "2026-11-04"
 account_id = "f5083db73276fcc04fe0118e9763e126"
-
-[ai]
-binding = "AI"
+workers_dev = true
 
 [vars]
-ENVIRONMENT = "production"
-APP_NAME = "RoadGuard Cloudflare Telemetry & Inference Backend"
-VERSION = "1.0.0"
+APP_NAME = "RoadGuard Road Intelligence API"
+VERSION = "2.0.0"
+ALLOWED_ORIGINS = "https://mokshith-gpt.github.io,http://localhost:8080,http://127.0.0.1:8080"
