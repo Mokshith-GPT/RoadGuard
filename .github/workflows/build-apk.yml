@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Build & Sign APK
+    name: Build & Release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -23,55 +23,54 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
 
-      - name: Grant Execute Permission for Gradle Wrapper
-        run: |
-          chmod +x android/gradlew || true
-
-      - name: Build Android APK with Gradle
+      - name: Generate Gradle Wrapper & Build APK
         working-directory: android
         run: |
-          # Use system gradle or wrapper
-          if [ -f "gradlew" ]; then
-            ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
-          else
-            gradle assembleRelease || gradle assembleDebug
-          fi
+          gradle wrapper --gradle-version 8.2
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
 
-      - name: Locate Generated APK
-        id: find_apk
+      - name: Find and Package APK
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk/ -name "*.apk" | head -n 1)
-          echo "Found APK at: $APK_PATH"
-          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
-          cp "$APK_PATH" RoadGuard-v1.0.apk
+          APK_FILE=$(find android/app/build/outputs/apk/ -name "*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: No APK found!"
+            exit 1
+          fi
+          echo "Found APK: $APK_FILE"
+          cp "$APK_FILE" RoadGuard-v1.0.apk
+          ls -lh RoadGuard-v1.0.apk
 
-      - name: Upload APK as Workflow Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: RoadGuard-v1.0-APK
-          path: RoadGuard-v1.0.apk
-          retention-days: 30
-
-      - name: Create GitHub Release with APK
+      - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/heads/main')
         with:
           tag_name: v1.0.0
-          name: "RoadGuard v1.0.0 - Android Mobile App"
+          name: "RoadGuard v1.0.0 (Android Mobile APK)"
+          draft: false
+          prerelease: false
           body: |
-            ### 🛣️ RoadGuard Android Mobile Application (.apk)
+            ## 🛣️ RoadGuard Android Mobile Application
 
-            * **Supported Android Versions:** Android 8.0 (Oreo, API 26) through Android 14/15 (API 34/35)
+            **Direct APK Download for Android Devices**
+
+            ### 📱 Compatibility & Security
+            * **Supported Android Versions:** Android 8.0 (Oreo, API 26) through Android 15 (API 34/35)
+            * **Target SDK:** 34 (Google Play Store & Play Protect Compliant)
             * **License:** Apache License 2.0
-            * **Target SDK:** 34 (Google Play Protect Compliant)
-            * **Features:**
-              - Real-time Dashcam Camera Viewfinder
-              - Live Telemetry HUD Banner (Damage Area % & Defect Counts)
-              - On-device Severity Indexing (Low 🟢, Medium 🟡, High 🔴)
-              - Automated Road Audit Snapshot Logging
+            * **Package Name:** `com.mokshith.roadguard`
+
+            ### 🚀 Features Included
+            * Real-time Camera Preview with Telemetry HUD Viewfinder
+            * Pothole (`D40`) & Crack (`D00`, `D10`, `D20`) Severity Indexing
+            * Metric surface area ratio calculation ($A_d = \frac{N_d}{N_r} \times 100$)
+            * On-device defect logging and snapshot audit
+            
+            ---
+            ### 📥 Download & Install
+            Click on **`RoadGuard-v1.0.apk`** under the **Assets** section below to download directly to your Android device.
           files: RoadGuard-v1.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
