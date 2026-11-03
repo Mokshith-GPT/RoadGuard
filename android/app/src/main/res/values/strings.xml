@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">RoadGuard</string>
+    <string name="tagline">Intelligent Pavement Distress Assessment</string>
+    <string name="start_inspection">Start Live Road Inspection</string>
+    <string name="upload_gallery">Analyze From Gallery</string>
+    <string name="camera_permission_required">Camera permission is required to detect road damage in real time.</string>
+</resources>

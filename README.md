@@ -129,3 +129,20 @@ When presenting to your guide and external examiners:
    > *"Roads suffer from extreme lighting variations—such as shadows cast by trees, bridges, and vehicles. Standard global thresholding fails under shadows. By converting to Lab space and applying CLAHE to the Lightness channel, we normalize local contrast and prevent shadow edges from triggering false alarms."*
 3. **Explain the Severity Rule:**
    > *"We compute the Road Damage Severity Index based on the affected surface area combined with defect hazard weighting. Potholes present an immediate structural hazard to vehicular suspensions and tire integrity, so they are assigned a 1.4x weighting factor compared to superficial linear cracks."*
+
+---
+
+## 📱 6. Android Mobile Application (`RoadGuard.apk`)
+
+RoadGuard includes a native Android mobile application tailored for in-vehicle dashcam mounting and handheld road surveys.
+
+* **Supported Android Versions:** Android 8.0 (Oreo, API 26) through the latest Android 14/15 (API 34/35).
+* **Google Play Protect Compliance:** Built targeting **API 34** with declared camera permissions and privacy safeguards so the system is recognized as safe and trusted by Google Play Protect.
+* **License:** Licensed under the [Apache License 2.0](LICENSE).
+* **Automated CI/CD APK Build:** GitHub Actions automatically builds the `.apk` on every push and attaches `RoadGuard-v1.0.apk` to the [GitHub Releases](https://github.com/Mokshith-GPT/RoadGuard/releases) tab.
+
+### Running the Mobile Backend
+```bash
+python mobile_api.py
+```
+This runs the lightweight REST endpoint on `http://0.0.0.0:8000/api/v1/inspect` to receive live frames from the Android app.
