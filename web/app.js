@@ -75,14 +75,22 @@
   }
   async function reverseAddress(position) {
     if (!position) return "Location not available";
+    const coordinateLabel = position.latitude + ", " + position.longitude;
+    let consent = localStorage.getItem("roadguard-geocoding-consent");
+    if (!consent) {
+      const approved = confirm("RoadGuard can add nearby street and place names to your evidence metadata. This sends the GPS coordinates to OpenStreetMap Nominatim for a reverse-geocoding lookup. Your images are not sent. Allow this lookup?");
+      consent = approved ? "granted" : "denied";
+      localStorage.setItem("roadguard-geocoding-consent", consent);
+    }
+    if (consent !== "granted") return "GPS coordinates: " + coordinateLabel + " (address lookup not enabled)";
     try {
       const q = new URLSearchParams({format:"jsonv2",lat:position.latitude,lon:position.longitude});
       const r = await fetch("https://nominatim.openstreetmap.org/reverse?" + q.toString(), {headers:{"Accept":"application/json"}});
-      if (!r.ok) return position.latitude + ", " + position.longitude;
+      if (!r.ok) return coordinateLabel;
       const data = await r.json();
-      return (data.display_name || (position.latitude + ", " + position.longitude)).slice(0,240);
+      return (data.display_name || coordinateLabel).slice(0,240);
     } catch (_) {
-      return position.latitude + ", " + position.longitude;
+      return coordinateLabel;
     }
   }
   async function metadata(source, filename) {

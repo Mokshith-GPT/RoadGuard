@@ -15,7 +15,7 @@ The `.github/workflows/deploy-pages.yml` workflow publishes `web/` on pushes to 
 3. When the workflow succeeds, the site URL for this repository is normally:
    `https://mokshith-gpt.github.io/RoadGuard/`
 
-The web app is an installable PWA on browsers that support installation. Camera access requires HTTPS (GitHub Pages qualifies) and explicit user permission. A browser tab can be suspended or killed by the operating system; do not rely on a browser PWA for unattended dashcam recording.
+The web app is an installable PWA on browsers that support installation. Camera access requires HTTPS (GitHub Pages qualifies) and explicit user permission. A browser tab can be suspended or killed by the operating system; do not rely on a browser PWA for unattended dashcam recording. GPS coordinates are stored locally by default. On the first address lookup, the app asks for separate consent before sending coordinates to OpenStreetMap Nominatim to obtain a street/place label; declining keeps coordinate-only metadata.
 
 ## 2. Google OAuth
 
