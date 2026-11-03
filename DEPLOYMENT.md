@@ -45,6 +45,8 @@ Set these Worker variables/secrets:
 
 The model endpoint must accept JSON containing `image_base64`, `filename`, and `metadata`, and return a JSON object with a `detections` array. Optional response fields are `overall_severity`, `overall_score`, and `damage_area_percentage`. A Python service can load `models/best.pt` with Ultralytics and expose this contract. Do not point `MODEL_API_URL` at a demo endpoint that fabricates detections.
 
+This repository now includes `model_service.py`, `requirements-model.txt`, and `model-service.Dockerfile` as that adapter. Train the model using the RDD2022 annotations, copy the trained checkpoint to `models/best.pt`, build the container with `docker build -f model-service.Dockerfile -t roadguard-model .`, then run it with `-e MODEL_API_TOKEN=<long-random-secret> -p 8000:8000` and mount the model file if it is not copied into the image. Deploy the container to a trusted HTTPS inference host with CPU/GPU capacity. Set the exact service URL plus the same token in the Cloudflare Worker as `MODEL_API_URL` and `MODEL_API_TOKEN`. Keep weights and API keys out of Git.
+
 Deploy manually from `cloudflare-backend/` with Wrangler after `npx wrangler login`, or add `CLOUDFLARE_API_TOKEN` to GitHub Actions and push a change under `cloudflare-backend/`. The pre-existing Worker URL in the original README is not proof that this updated Worker has been deployed; verify `GET /health` after deployment.
 
 The Worker does not persist cloud audit logs. Evidence remains local to each device. Add Cloudflare D1/R2 (with ownership, retention and deletion policy) before building shared multi-device albums.
