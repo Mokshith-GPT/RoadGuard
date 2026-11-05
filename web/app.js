@@ -627,6 +627,12 @@
     if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia) {
       state.frameTimer=setInterval(analyzeLiveFrame,5000);
     }
+    const applyHash = () => {
+      const h = (window.location.hash || "").replace("#", "");
+      if (h && ["dashboard", "live", "upload", "album", "reports", "settings"].includes(h)) navigate(h);
+    };
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
   }
   document.addEventListener("DOMContentLoaded",init);
 })();
